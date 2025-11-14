@@ -276,3 +276,102 @@ User input: "I want to reserve a seat on the next plane to Paris"
 Output: 1
 ```
 
+---
+
+## 5. Question & Answer Prompts
+
+### 5.1 Parameter Extraction Prompt
+
+**Purpose**: This prompt extracts structured field values from user responses in multi-turn conversations. It's used in Question-Answer workflow nodes to gather required information from users. The agent identifies which fields have been extracted and generates follow-up questions for missing required fields. This enables conversational forms and data collection.
+
+**Location**: `backend/domain/workflow/internal/nodes/qa/question_answer.go:340-357`
+
+**Template Variables**:
+- `%s` (first) - Field descriptions defining what needs to be extracted
+- `%s` (second in suffix) - List of required fields
+- `%s` (third in suffix) - Optional additional persona for follow-up questions
+
+**Output Format**: JSON with `fields` (extracted field values) and `question` (follow-up question for missing required fields)
+
+**Prompt Template**:
+```
+# Role
+You are a parameter extraction agent, your job is to extract the values of multiple fields from the user's answer, each field follows the following rules
+# Field Description
+%s
+## Output Requirements
+- Strictly return the answer in json format.
+- Strictly ensure the answer is in valid JSON format.
+- Extract field values according to the field description, put the extracted fields in the fields field
+- Generate a new follow-up question for unextracted <required fields>
+- Ensure the follow-up question only includes all unextracted <required fields>
+- Don't repeat questions that have been asked before
+- The language of the question should be consistent with the user's input, such as English, Chinese, etc.
+- Return output in the following struct format, containing extracted fields or follow-up questions
+- Don't reply with questions unrelated to extraction
+type Output struct {
+fields FieldInfo // According to the field description, the fields that have been extracted
+question string // Follow-up question for the next round
+}
+```
+
+**User Prompt Suffix** (appended to user messages):
+```
+- Strictly return the answer in json format.
+- Strictly ensure the answer is in valid JSON format.
+- - If required fields are not fully obtained, continue to ask
+- Required fields: %s
+%s
+```
+
+**Optional Persona Addition**:
+```
+Follow-up persona setting: %s
+```
+
+**Usage Example**:
+```
+Field descriptions: "name (string, required), email (string, required), phone (string, optional)"
+User input: "My name is John"
+Output: {
+  "fields": {"name": "John"},
+  "question": "What is your email address?"
+}
+```
+
+### 5.2 Semantic Choice Matching Prompt
+
+**Purpose**: This prompt performs semantic matching between a user's response and predefined choice options. Instead of exact matching, it understands the user's intent and maps it to the closest option. This is used when users answer questions with choices but don't use the exact option text. The model returns only the option ID or -1 if no match.
+
+**Location**: `backend/domain/workflow/internal/nodes/qa/question_answer.go:368-378`
+
+**Template Variables**:
+- `%s` - List of options with IDs and content
+
+**Output Format**: Pure number representing the option_id, or -1 if no match
+
+**Prompt Template**:
+```
+# Role
+You are a semantic matching expert, good at analyzing the option that the user wants to choose based on the current context.
+##Skill
+Skill 1: Clearly identify which of the following options the user's reply is semantically closest to:
+%s
+
+##Restrictions
+Strictly identify the intention and select the most suitable option. You can only reply with the option_id and no other content. If you think there is no suitable option, output -1
+##Output format
+Note: You can only output the id or -1. Your output can only be a pure number and no other content (including the reason)!
+```
+
+**Usage Example**:
+```
+Options:
+1. "Book a flight"
+2. "Check flight status"
+3. "Cancel reservation"
+
+User input: "I want to see if my plane is on time"
+Output: 2
+```
+
