@@ -614,3 +614,84 @@ You are a uniquely creative and excellent {{designer_type}}, able to accurately 
 - Communicate with users in a timely manner and make adjustments and optimizations based on user feedback.
 ```
 
+---
+
+## 7. Natural Language to SQL Prompts
+
+### 7.1 NL2SQL Conversion Prompt
+
+**Purpose**: This prompt converts natural language descriptions into MySQL-standard SQL queries. It's used in database workflows and knowledge base systems to automatically generate SQL from user queries. The prompt returns structured JSON output with the SQL query, error code, and detailed error messages. This enables natural language interfaces to databases.
+
+**Location**: `backend/conf/prompt/nl2sql_template_jinja2.json`
+
+**Template Variables**:
+- `{{table_schema}}` - The table schema description with CREATE TABLE statements
+- `{{messages}}` - Natural language description of the SQL requirement
+
+**Input Format**:
+- Table schema: CREATE TABLE statements with column definitions and comments
+- Messages: Natural language query description
+
+**Output Format**: JSON with three fields:
+- `sql` - The generated SQL query (string)
+- `err_code` - Error code integer (0 = success, 3002 = timeout, 3003 = schema missing, 3005 = ambiguous)
+- `err_msg` - Detailed error message or success confirmation (string, preferably >10 words)
+
+**Prompt Template**:
+```json
+[
+  {
+    "role": "system",
+    "content": "# Role: NL2SQL Consultant\n\n## Goals\nTranslate natural language statements into SQL queries in MySQL standard. Follow the Constraints and return only a JSON always.\n\n## Format\n- JSON format only. JSON contains field \"sql\" for generated SQL, filed \"err_code\" for reason type, field \"err_msg\" for detail reason (prefer more than 10 words)\n- Don't use \"```json\" markdown format\n\n## Skills\n- Good at Translate natural language statements into SQL queries in MySQL standard.\n\n## Define\n\"err_code\" Reason Type Define:\n- 0 means you generated a SQL\n- 3002 means you cannot generate a SQL because of timeout\n- 3003 means you cannot generate a SQL because of table schema missing\n- 3005 means you cannot generate a SQL because of some term is ambiguous\n\n## Example\nQ: Help me implement NL2SQL.\n​.table schema description: ​​CREATE TABLE `sales_records` (\\n  `sales_id` bigint(20) unsigned NOT NULL COMMENT 'id of sales person',\\n  `product_id` bigint(64) COMMENT 'id of product',\\n  `sale_date` datetime(3) COMMENT 'sold date and time',\\n  `quantity_sold` int(11) COMMENT 'sold amount',\\n  PRIMARY KEY (`sales_id`)\\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='销售记录表';\n​.natural language description of the SQL requirement:  ​​​​查询上月的销量总额第一名的销售员和他的销售总额\nA: {\n  \"sql\":\"SELECT sales_id, SUM(quantity_sold) AS total_sales FROM sales_records WHERE MONTH(sale_date) = MONTH(CURRENT_DATE - INTERVAL 1 MONTH) AND YEAR(sale_date) = YEAR(CURRENT_DATE - INTERVAL 1 MONTH) GROUP BY sales_id ORDER BY total_sales DESC LIMIT 1\",\n  \"err_code\":0,\n  \"err_msg\":\"SQL query generated successfully\"\n}"
+  },
+  {
+    "role": "user",
+    "content": "help me implement NL2SQL.\ntable schema description:{{table_schema}}\nnatural language description of the SQL requirement: {{messages}}."
+  }
+]
+```
+
+**Usage Example**:
+```
+Input:
+- Table schema: CREATE TABLE `sales_records` (sales_id bigint, product_id bigint, sale_date datetime, quantity_sold int, ...)
+- Natural language: "Query the top salesperson by total quantity sold last month and their total sales amount"
+
+Output:
+{
+  "sql": "SELECT sales_id, SUM(quantity_sold) AS total_sales FROM sales_records WHERE MONTH(sale_date) = MONTH(CURRENT_DATE - INTERVAL 1 MONTH) AND YEAR(sale_date) = YEAR(CURRENT_DATE - INTERVAL 1 MONTH) GROUP BY sales_id ORDER BY total_sales DESC LIMIT 1",
+  "err_code": 0,
+  "err_msg": "SQL query generated successfully"
+}
+```
+
+---
+
+## Additional Notes
+
+### Prompt Processing Pipeline
+
+The prompts documented above are processed through various stages:
+
+1. **Template Rendering**: Jinja2 templates are rendered with context variables
+2. **Multimodal Processing**: For multimodal models, file URLs are converted to appropriate message parts (images, audio, video)
+3. **Chat History Integration**: Some prompts support chat history which is inserted between system and user messages
+4. **Response Format Handling**: Different response formats (JSON, plain text, structured output) are specified in model parameters
+
+### Common Features Across Prompts
+
+- **Language Consistency**: Most prompts instruct the model to respond in the same language as the user's input
+- **JSON Output**: Many prompts require structured JSON output for parsing and downstream processing
+- **Input Slots**: Template prompts use `{#InputSlot#}` markers for user customization
+- **Library Blocks**: Templates can reference skills, knowledge bases, and workflows via `{#LibraryBlock#}` markers
+- **Safety Guardrails**: Agent system prompts include content safety guidelines
+
+### File Locations Summary
+
+All prompts can be found in the following locations:
+- Agent flow prompts: `backend/domain/agent/singleagent/internal/agentflow/`
+- Workflow node prompts: `backend/domain/workflow/internal/nodes/`
+- Official templates: `backend/domain/prompt/internal/official/official_prompt.go`
+- Query processing: `backend/conf/prompt/`
+- Suggestion system: `backend/domain/workflow/internal/repo/suggest.go`
+
