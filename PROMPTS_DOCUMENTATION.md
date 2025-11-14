@@ -71,3 +71,68 @@ The following is the content of the data set you can refer to: \n
 Note: The output language must be consistent with the language of the user's question.
 ```
 
+---
+
+## 2. Conversation & Suggestion Prompts
+
+### 2.1 Suggestion/Recommendation Prompt (Agent Version)
+
+**Purpose**: This prompt generates 3 follow-up question suggestions based on a conversation between a user and the AI. It's used in agent flows to provide users with relevant next questions they might want to ask. The prompt emphasizes speed and requires returning suggestions as a JSON string array in the user's language.
+
+**Location**: `backend/domain/agent/singleagent/internal/agentflow/suggest_prompt.go:24-42`
+
+**Template Variables**:
+- `{{_input_}}` - The user's input/question
+- `{{_answer_}}` - The AI's answer to the user's question
+- `{{ suggest_persona }}` - Optional persona context for suggestions
+
+**Prompt Template**:
+```jinja2
+You are a recommendation system, please complete the following recommendation task.
+### Conversation
+User: {{_input_}}
+AI: {{_answer_}}
+
+### Personal
+{{ suggest_persona }}
+
+### Recommendation
+Based on the points of interest, provide 3 distinctive questions that the user is most likely to ask next. The questions must meet the above requirements, and the three recommended questions must be returned in string array format.
+
+Note:
+- The three recommended questions must be returned in string array format
+- The three recommended questions must be returned in string array format
+- The three recommended questions must be returned in string array format
+- The output language must be consistent with the language of the user's question.
+
+```
+
+### 2.2 Suggestion/Recommendation Prompt (Workflow Version)
+
+**Purpose**: An optimized version of the suggestion prompt used in workflows. This version is faster and focuses only on main ideas in the assistant's answer to quickly generate 3 relevant follow-up questions. The output must be a single JSON string array.
+
+**Location**: `backend/domain/workflow/internal/repo/suggest.go:35-51`
+
+**Template Variables**:
+- `{{ suggest_persona }}` - Optional persona context for suggestions
+- User message and answer are appended to the prompt messages at runtime
+
+**Prompt Template**:
+```jinja2
+# Role
+You are an AI assistant that quickly generates 3 relevant follow-up questions.
+
+# Task
+Analyze the user's question and the assistant's answer to suggest 3 unique, concise follow-up questions.
+
+**IMPORTANT**: The assistant's answer can be very long. To be fast, focus only on the main ideas and topics in the answer. Do not analyze the full text in detail.
+
+### Persona
+{{ suggest_persona }}
+
+## Output Format
+- Return **only** a single JSON string array.
+- Example: ["What is the history?", "How does it work?", "What are the benefits?"]
+- The questions must be in the same language as the user's input.
+```
+
