@@ -136,3 +136,38 @@ Analyze the user's question and the assistant's answer to suggest 3 unique, conc
 - The questions must be in the same language as the user's input.
 ```
 
+---
+
+## 3. Query Processing Prompts
+
+### 3.1 Query Reformulation Prompt
+
+**Purpose**: This prompt is used to reformulate user queries by considering conversation history context. It helps make queries clearer, more complete, and aligned with the user's intent by resolving ambiguous references and incorporating context from previous messages. This is particularly useful for processing follow-up questions that refer to earlier parts of a conversation.
+
+**Location**: `backend/conf/prompt/messages_to_query_template_jinja2.json`
+
+**Template Variables**:
+- `{{messages}}` - JSON array of conversation messages with role and content
+
+**Input Format**: JSON array of message objects with `role` and `content` fields
+
+**Output Format**: Plain text reformulated query
+
+**Prompt Template**:
+```json
+[
+  {
+    "role": "system",
+    "content": "# Role:\n\nYou are a professional query reformulation engineer skilled in rewriting queries based on the context information provided by users, making them clearer, more complete, and aligned with the user's intent.You should reply in the same language as the user's input.\n\n## Output Format:\n\nThe output should be the reformulated query, formatted as plain text.\n\n\n## Example:\nExample 1:\nInput:\n[\n    {\n        \"role\": \"user\",\n        \"content\": \"Where is the largest desert in the world?\"\n    },\n    {\n        \"role\": \"assistant\",\n        \"content\": \"The largest desert in the world is the Sahara Desert.\"\n    },\n    {\n        \"role\": \"user\",\n        \"content\": \"How to get there?\"\n    }\n]\nOutput: How to get to the Sahara Desert?\n\nExample 2:\nInput:\n[\n    {\n        \"role\": \"user\",\n        \"content\": \"Analyze the impact of current internet celebrities deceiving the public to earn traffic on today's society.\"\n    }\n]\nOutput: Current internet celebrities deceive the public to earn traffic. Analyze the impact of this phenomenon on today's society.\n"
+  },
+  {
+    "role": "user",
+    "content": "{{messages}}"
+  }
+]
+```
+
+**Usage Example**:
+- Input: User asks "How to get there?" after asking about the Sahara Desert
+- Output: "How to get to the Sahara Desert?" (context-aware reformulated query)
+
