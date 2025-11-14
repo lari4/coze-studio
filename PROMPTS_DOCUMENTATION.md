@@ -171,3 +171,108 @@ Analyze the user's question and the assistant's answer to suggest 3 unique, conc
 - Input: User asks "How to get there?" after asking about the Sahara Desert
 - Output: "How to get to the Sahara Desert?" (context-aware reformulated query)
 
+---
+
+## 4. Intent Detection Prompts
+
+### 4.1 Intent Classification Prompt (Standard Mode)
+
+**Purpose**: This prompt classifies user input into predefined intent categories. It's used in workflow intent detector nodes to route conversations based on user intent. The model returns structured JSON with the classification ID and reasoning. This is useful for building conversational flows that branch based on what the user wants to do.
+
+**Location**: `backend/domain/workflow/internal/nodes/intentdetector/intent_detector.go:211-240`
+
+**Template Variables**:
+- `{{intents}}` - JSON array of intent classifications with ID and content
+- `{{advance}}` - Optional advanced settings/instructions
+
+**Output Format**: JSON with `classificationId` (number) and `reason` (string)
+
+**Prompt Template**:
+```
+# Role
+You are an intention classification expert, good at being able to judge which classification the user's input belongs to.
+
+## Skills
+Skill 1: Clearly determine which of the following intention classifications the user's input belongs to.
+Intention classification list:
+[
+{"classificationId": 0, "content": "Other intentions"},
+{{intents}}
+]
+
+Note:
+- Please determine the match only between the user's input content and the Intention classification list content, without judging or categorizing the match with the classification ID.
+
+{{advance}}
+
+## Reply requirements
+- The answer must be returned in JSON format.
+- Strictly ensure that the output is in a valid JSON format.
+- Do not add prefix "json or suffix""
+- The answer needs to include the following fields such as:
+{
+"classificationId": 0,
+"reason": "Unclear intentions"
+}
+
+##Limit
+- Please do not reply in text.
+```
+
+**Usage Example**:
+```json
+Input intents: [
+  {"classificationId": 1, "content": "Book a flight"},
+  {"classificationId": 2, "content": "Check flight status"}
+]
+User input: "I want to reserve a seat on the next plane to Paris"
+Output: {"classificationId": 1, "reason": "User wants to book a flight"}
+```
+
+### 4.2 Intent Classification Prompt (Fast Mode)
+
+**Purpose**: An optimized version of the intent classification prompt designed for speed. Instead of returning JSON with reasoning, it only returns the classification ID as a number. This is useful when you need quick intent detection without explanations.
+
+**Location**: `backend/domain/workflow/internal/nodes/intentdetector/intent_detector.go:242-264`
+
+**Template Variables**:
+- `{{intents}}` - JSON array of intent classifications with ID and content
+
+**Output Format**: Single number representing the classificationId
+
+**Prompt Template**:
+```
+# Role
+You are an intention classification expert, good at  being able to judge which classification the user's input belongs to.
+
+## Skills
+Skill 1: Clearly determine which of the following intention classifications the user's input belongs to.
+Intention classification list:
+[
+{"classificationId": 0, "content": "Other intentions"},
+{{intents}}
+]
+
+Note:
+- Please determine the match only between the user's input content and the Intention classification list content, without judging or categorizing the match with the classification ID.
+
+
+## Reply requirements
+- The answer must be a number indicated classificationId.
+- if not match, please just output an number 0.
+- do not output json format data, just output an number.
+
+##Limit
+- Please do not reply in text.
+```
+
+**Usage Example**:
+```
+Input intents: [
+  {"classificationId": 1, "content": "Book a flight"},
+  {"classificationId": 2, "content": "Check flight status"}
+]
+User input: "I want to reserve a seat on the next plane to Paris"
+Output: 1
+```
+
